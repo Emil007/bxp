@@ -2,6 +2,8 @@
 
 A fan-made companion tool for **Ball x Pit** designed to help players track inventory, discover evolutions, and plan their builds.
 
+Full Disclosure: shit is completly vibe-coded, i'm ashamed, surpised and happy at the same time
+
 ### 🚀 **Use the Tool:** [https://emil007.github.io/bxp/](https://emil007.github.io/bxp/)
 
 ## Features
