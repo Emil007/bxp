@@ -6,7 +6,7 @@
     <title>Ball x Pit Evolution Helper</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     
-    <style>
+<style>
         /* --- VARIABLES & THEME --- */
         :root {
             --bg-core: #0a0a0c; 
@@ -30,13 +30,12 @@
             color: var(--text-main);
             margin: 0; padding: 0; height: 100vh; 
             display: flex; flex-direction: column; overflow: hidden;
-            /* Subtle grid background pattern */
             background-image: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
             background-size: 100% 2px, 3px 100%;
         }
         [v-cloak] { display: none; }
 
-        /* --- SCROLLBARS (Minimalist) --- */
+        /* --- SCROLLBARS --- */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #0a0a0c; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
@@ -74,205 +73,112 @@
         /* --- MAIN LAYOUT --- */
         .main-container { display: flex; height: calc(100vh - 50px); overflow: hidden; }
         
-        /* Left Column: Selector */
         .col-select { flex: 0 0 280px; background: var(--bg-panel); border-right: 2px solid var(--border-main); display: flex; flex-direction: column; }
-        
-        /* Middle Column: Inventory */
         .col-inv { flex: 0 0 140px; background: #0c0c0e; border-right: 2px solid var(--border-main); padding: 15px 5px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
-        
-        /* Right Column: Results & Library */
         .col-results { flex: 1; display: flex; flex-direction: column; background: #08080a; overflow: hidden; position: relative; }
 
-        /* --- LEFT SIDE: GRID SELECTOR (FIXED LAYOUT) --- */
+        /* --- LEFT SIDE --- */
         .select-section { display: flex; flex-direction: column; border-bottom: 2px solid var(--border-main); }
-        
-        /* TOP SECTION (BALLS): Auto height based on content */
-        .select-section:nth-of-type(1) { 
-            flex: 0 0 auto; /* Don't grow, take only needed space */
-            max-height: 60vh; /* Safety limit */
-        }
-        
-        /* BOTTOM SECTION (PASSIVES): Takes remaining space */
-        .select-section:nth-of-type(2) { 
-            flex: 1; /* Grow to fill rest */
-            border-bottom: none;
-            overflow: hidden; /* Needed for inner scroll */
-        }
+        .select-section:nth-of-type(1) { flex: 0 0 auto; max-height: 60vh; } 
+        .select-section:nth-of-type(2) { flex: 1; border-bottom: none; overflow: hidden; }
 
         .section-header { background: #1a1a1d; padding: 4px; font-size: 0.75rem; color: #888; text-align: center; border-bottom: 1px solid #333; text-transform: uppercase; letter-spacing: 1px; }
-        
-        /* Minimal padding */
         .grid-scroll { flex: 1; overflow-y: auto; padding: 4px; }
         .grid-selector { display: grid; gap: 3px; padding: 2px; } 
-        
-        /* Specific Grid Layouts */
         .select-section:nth-of-type(1) .grid-selector { grid-template-columns: repeat(4, 1fr) !important; }
         .select-section:nth-of-type(2) .grid-selector { grid-template-columns: repeat(5, 1fr) !important; }
 
-        /* Item Buttons (Left Side) */
         .item-btn {
-            background: #111; border: 1px solid #333; 
-            aspect-ratio: 1 / 1; width: 100%; 
-            cursor: pointer;
+            background: #111; border: 1px solid #333; aspect-ratio: 1 / 1; width: 100%; cursor: pointer;
             display: flex; align-items: center; justify-content: center; border-radius: 6px; 
             transition: all 0.2s; position: relative; overflow: hidden;
         }
         .item-btn img { width: 90%; height: 90%; object-fit: contain; opacity: 0.7; transition: 0.2s; }
-        .item-btn:hover { 
-            border-color: var(--accent-blue); box-shadow: 0 0 15px rgba(77, 179, 255, 0.4); 
-            transform: translateY(-2px) scale(1.05); z-index: 2;
-        }
+        .item-btn:hover { border-color: var(--accent-blue); box-shadow: 0 0 15px rgba(77, 179, 255, 0.4); transform: translateY(-2px) scale(1.05); z-index: 2; }
         .item-btn:hover img { opacity: 1; }
         .item-btn.targeted { border-color: var(--accent-blue); box-shadow: inset 0 0 10px rgba(0, 210, 255, 0.3); }
-        .item-btn.active { 
-            border: 2px solid var(--accent-green) !important; background: #0a1a0a; box-shadow: 0 0 10px rgba(80, 250, 123, 0.2); 
-        }
+        .item-btn.active { border: 2px solid var(--accent-green) !important; background: #0a1a0a; box-shadow: 0 0 10px rgba(80, 250, 123, 0.2); }
         .item-btn.active img { opacity: 0.4; filter: grayscale(100%); }
         .count-badge { position: absolute; bottom: 0px; right: 0px; background: var(--accent-blue); color: #000; font-size: 0.6rem; font-weight: 900; padding: 0px 3px; border-radius: 2px; pointer-events: none; line-height: 1; opacity: 0.9; }
 
-        /* --- MIDDLE: INVENTORY SLOTS --- */
+        /* --- MIDDLE: INVENTORY --- */
         .inv-group { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; }
         .inv-header { display: flex; align-items: center; gap: 10px; width: 100%; justify-content: center; margin-bottom: 4px; }
         .inv-label { font-size: 0.7rem; color: #555; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-        .slot-unlock-btn { 
-            background: #111; border: 1px solid #333; color: #555; width: 20px; height: 20px; 
-            display: flex; align-items: center; justify-content: center; font-size: 10px; border-radius: 4px; cursor: pointer; 
-        }
-        .slot-unlock-btn.active { border-color: var(--accent-green); color: var(--accent-green); background: #051505; }
-        .slot-unlock-btn:hover { border-color: #fff; color: #fff; }
-
+        
         .slot {
-            width: 60px; height: 60px; 
-            background: #050505; border: 2px solid #2a2a2a; border-radius: 8px;
+            width: 60px; height: 60px; background: #050505; border: 2px solid #2a2a2a; border-radius: 8px;
             display: flex; justify-content: center; align-items: center; position: relative; 
             transition: all 0.2s; box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
         }
         .slot:not(.filled):not(.blocked-slot):hover { border-color: var(--accent-blue); transform: scale(1.03); cursor: pointer; }
-        .slot.filled { 
-            border-color: var(--border-highlight); background: radial-gradient(circle at center, #2a2200 0%, #080808 100%); 
-            cursor: grab; box-shadow: 0 0 5px rgba(0,0,0,0.5);
-        }
+        .slot.filled { border-color: var(--border-highlight); background: radial-gradient(circle at center, #2a2200 0%, #080808 100%); cursor: grab; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
         .slot.filled:hover { border-color: #fff; }
         .slot.filled img { width: 45px; height: 45px; object-fit: contain; filter: drop-shadow(0 0 5px rgba(255,215,0,0.3)); pointer-events: none;}
-        
         .slot.reserved { border-color: var(--accent-blue); }
-        .slot.reserved::after { 
-            content: "🎯"; position: absolute; bottom: -8px; right: -8px; 
-            font-size: 14px; background: #000; border-radius: 50%; padding: 3px; border: 1px solid var(--accent-blue);
-            z-index: 5; box-shadow: 0 0 5px var(--accent-blue);
-        }
-        .slot.blocked-slot { 
-            border-color: #444; background: repeating-linear-gradient(45deg, #1a1a1a, #1a1a1a 10px, #333 10px, #333 20px);
-            cursor: not-allowed; box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
-        }
+        .slot.reserved::after { content: "🎯"; position: absolute; bottom: -8px; right: -8px; font-size: 14px; background: #000; border-radius: 50%; padding: 3px; border: 1px solid var(--accent-blue); z-index: 5; box-shadow: 0 0 5px var(--accent-blue); }
+        .slot.blocked-slot { border-color: #444; background: repeating-linear-gradient(45deg, #1a1a1a, #1a1a1a 10px, #333 10px, #333 20px); cursor: not-allowed; box-shadow: inset 0 0 10px rgba(0,0,0,0.8); }
         .slot.is-fused { border: 2px solid var(--accent-purple); background: radial-gradient(circle at center, #1a0a2a 0%, #05020a 100%); }
         .slot.selected { border-color: var(--accent-gold); background: #1a1500; animation: pulse-gold 1.5s infinite; z-index: 10; transform: scale(1.05); }
         @keyframes pulse-gold { 0%, 100% { border-color: var(--accent-gold); } 50% { border-color: #866000; } }
         .slot.valid-target { border-color: var(--accent-green); background: #051505; transform: scale(1.05); cursor: pointer; }
         .slot.drag-over { border-color: var(--accent-purple) !important; background: #1a1020 !important; transform: scale(1.1) !important; }
-        
-        .slot-remove { 
-            position: absolute; inset: 0; background: rgba(0,0,0,0.85); color: var(--accent-red); display: none;
-            align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer; border-radius: 6px; z-index: 20;
-            backdrop-filter: blur(2px);
-        }
+        .slot-remove { position: absolute; inset: 0; background: rgba(0,0,0,0.85); color: var(--accent-red); display: none; align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer; border-radius: 6px; z-index: 20; backdrop-filter: blur(2px); }
         .slot.filled:hover .slot-remove { display: flex; }
         .fused-display { display: flex; width: 100%; height: 100%; padding: 4px; gap: 2px; justify-content: center; }
         .fused-display img { width: 45%; height: 100%; object-fit: contain; }
 
-        /* --- RIGHT SIDE: RESULTS --- */
+        /* --- RIGHT SIDE --- */
         .result-area { flex: 1; overflow-y: auto; padding: 15px; position: relative; }
         .list-move, .list-enter-active, .list-leave-active { transition: all 0.4s cubic-bezier(0.25, 1.2, 0.5, 1); }
         .list-enter-from, .list-leave-to { opacity: 0; transform: translateY(20px) scale(0.9); }
         .list-leave-active { position: absolute; width: calc(100% - 30px); }
 
-        .evo-card {
-            background: #131315; border: 1px solid #2a2a2a; margin-bottom: 10px; padding: 8px 12px;
-            display: flex; flex-direction: column; gap: 10px; border-radius: 6px; 
-            transition: all 0.2s; position: relative;
-        }
+        .evo-card { background: #131315; border: 1px solid #2a2a2a; margin-bottom: 10px; padding: 8px 12px; display: flex; flex-direction: column; gap: 10px; border-radius: 6px; transition: all 0.2s; position: relative; }
         .evo-main-row { display: flex; align-items: center; gap: 15px; width: 100%; }
         .evo-card.ready { border: 2px solid var(--accent-green); background: linear-gradient(90deg, #0a1a0a, #131315); }
         .evo-card.target-active { border: 2px solid var(--accent-blue); background: linear-gradient(90deg, #0a141a, #131315); }
         .evo-card.synergy { background: #1a2a3a; border-color: var(--accent-blue); }
-
         .evo-main-img { width: 56px; height: 56px; background: #000; border: 1px solid #333; border-radius: 6px; padding: 2px; flex-shrink: 0; }
         .evo-details { flex: 1; }
         .evo-name { font-size: 1rem; font-weight: bold; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-        
         .req-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
         .req-or { font-size: 0.6rem; color: #666; font-weight: bold; }
-
-        .req-chip { 
-            display: inline-flex; align-items: center; gap: 6px; background: #050505; padding: 2px 8px 2px 4px; margin-right: 4px;
-            border: 1px solid #333; border-radius: 4px; height: 28px; transition: all 0.2s; cursor: pointer;
-        }
+        .req-chip { display: inline-flex; align-items: center; gap: 6px; background: #050505; padding: 2px 8px 2px 4px; margin-right: 4px; border: 1px solid #333; border-radius: 4px; height: 28px; transition: all 0.2s; cursor: pointer; }
         .req-chip img { width: 20px; height: 20px; }
         .req-chip span { font-size: 0.75rem; color: #888; }
         .req-chip.miss { border-color: #522; }
         .req-chip.miss:hover { border-color: var(--accent-red); background: #1a0a0a; }
         .req-chip.ok { border-color: #252; background: #0a1a0a; }
         .req-chip.ok span { color: var(--accent-green); }
-
         .sub-recipe-box { background: rgba(0,0,0,0.3); border-top: 1px dashed #333; padding-top: 8px; width: 100%; display: flex; flex-direction: column; gap: 6px; }
         .sub-row { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: #888; flex-wrap: wrap; }
         .req-chip.sub { height: 24px; padding: 1px 6px; font-size: 0.7rem; }
-
         .status-badge { font-size: 0.6rem; font-weight: bold; border-radius: 3px; padding: 2px 4px; text-transform: uppercase; margin-left: auto; }
         .badge-target { background: var(--accent-blue); color: #000; }
         
-        /* --- BOTTOM LIBRARY (BALANCED) --- */
-        .target-library { 
-            height: clamp(140px, 28vh, 300px); 
-            background: #0e0e10; border-top: 2px solid var(--border-main); padding: 4px; 
-            display: flex; flex-direction: column; 
-        }
+        /* --- LIBRARY --- */
+        .target-library { height: clamp(140px, 28vh, 300px); background: #0e0e10; border-top: 2px solid var(--border-main); padding: 4px; display: flex; flex-direction: column; }
         .lib-header { font-size: 0.65rem; color: #555; text-align: center; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; }
+        .lib-scroll { overflow-y: auto; flex: 1; display: flex; flex-direction: column; padding: 4px; gap: 8px; }
         
-        .lib-scroll { 
-            overflow-y: auto; flex: 1; 
-            display: flex; flex-direction: column; 
-            padding: 4px; gap: 8px;
-        }
-        
-        /* Vertical container for ball rows */
+        /* Desktop: Vertical stacking of rows */
         .lib-group-vertical { display: flex; flex-direction: column; gap: 2px; width: 100%; }
-        
-        /* Centered rows for passives or ball splits */
-        .lib-row-centered {
-            display: flex; flex-wrap: wrap; 
-            justify-content: center; 
-            gap: 2px; 
-            width: 100%;
-        }
-
+        .lib-row-centered { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; width: 100%; }
         .lib-separator { width: 80%; height: 1px; background: #222; margin: 2px auto; flex-shrink: 0; }
         
-        /* Library Icons: Responsive Size */
-        .lib-icon { 
-            width: clamp(22px, 2.4vw, 36px); 
-            height: clamp(22px, 2.4vw, 36px);
-            border: 1px solid #222; background: #050505; cursor: pointer; 
-            display: flex; align-items: center; justify-content: center; border-radius: 4px; opacity: 0.7; 
-            transition: all 0.2s; flex: 0 0 auto;
-        }
+        .lib-icon { width: clamp(22px, 2.4vw, 36px); height: clamp(22px, 2.4vw, 36px); border: 1px solid #222; background: #050505; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; opacity: 0.7; transition: all 0.2s; flex: 0 0 auto; }
         .lib-icon img { width: 85%; height: 85%; object-fit: contain; }
         .lib-icon:hover { opacity: 1; transform: translateY(-3px) scale(1.1); background: #151515; z-index: 5; border-color: #555; }
         .lib-icon.is-target { border-color: var(--accent-blue); background: #001a2a; opacity: 1; box-shadow: 0 0 5px var(--accent-blue); }
         .lib-icon.synergy { border-color: var(--accent-blue); box-shadow: 0 0 8px rgba(0, 210, 255, 0.5); opacity: 1; background: #0a2a3a; z-index: 6; }
         
-        /* Buttons & Tooltips */
         .btn-group { display: flex; gap: 6px; }
         .action-btn { background: #1a3a1a; color: #bfb; border: 1px solid #262; padding: 4px 10px; }
         .untarget-btn { background: #1a2a3a; color: #bdf; border: 1px solid var(--accent-blue); padding: 4px 10px; }
         .target-btn { background: #111; color: #777; border: 1px solid #333; padding: 4px 10px; }
         
-        #tooltip {
-            position: fixed; background: rgba(12, 12, 14, 0.98); border: 2px solid var(--border-highlight);
-            color: #fff; padding: 12px; z-index: 9999; pointer-events: none; border-radius: 8px; 
-            font-size: 0.85rem; max-width: min(280px, calc(100vw - 20px)); backdrop-filter: blur(10px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
+        #tooltip { position: fixed; background: rgba(12, 12, 14, 0.98); border: 2px solid var(--border-highlight); color: #fff; padding: 12px; z-index: 9999; pointer-events: none; border-radius: 8px; font-size: 0.85rem; max-width: min(280px, calc(100vw - 20px)); backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .tt-header { color:var(--border-highlight); font-weight:900; margin-bottom:6px; border-bottom:2px solid #333; padding-bottom: 4px; font-size: 1rem; }
         .tt-desc { color:#bbb; font-style:italic; line-height:1.4; }
         .tt-ing-row { display: flex; gap: 6px; justify-content: center; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #333; }
@@ -283,6 +189,32 @@
             body { height: auto; overflow-y: scroll; display: block; position: relative; }
             .main-container { flex-direction: column; height: auto; overflow: visible; display: flex; }
 
+            /* Mobile Header Update */
+            header { 
+                height: auto; 
+                flex-wrap: wrap; 
+                padding: 10px 15px; 
+                gap: 10px; 
+                justify-content: space-between; 
+            }
+            h1 { 
+                width: 100%; 
+                text-align: center; 
+                order: 1; 
+                margin: 0 0 5px 0; 
+            }
+            .search-wrapper { 
+                order: 2; 
+                flex: 1; 
+                min-width: 0; 
+                max-width: none; 
+            }
+            .header-controls { 
+                order: 3; 
+                flex: 0 0 auto; 
+            }
+
+            /* Inventory */
             .col-inv {
                 order: 1; width: 100%; flex: none; flex-direction: column; gap: 15px; padding: 20px 5px;
                 border-right: none; border-bottom: 2px solid var(--border-main); background: #08080a;
@@ -293,13 +225,13 @@
             .slot { width: 16vw; height: 16vw; max-width: 60px; max-height: 60px; } 
             .slot.filled .slot-remove { display: flex; opacity: 0.8; font-size: 1.2rem; top: -8px; right: -8px; left: auto; bottom: auto; background: #500; width: 24px; height: 24px; border-radius: 50%; border: 2px solid #f55; }
 
+            /* Selection: FIX height to auto to remove gap */
             .col-select {
-                order: 2; width: 100%; flex: none; height: 380px; flex-direction: row;
+                order: 2; width: 100%; flex: none; height: auto; flex-direction: row;
                 border-right: none; border-bottom: 2px solid var(--border-main);
             }
             .select-section { width: 50%; border-right: 1px solid #333; border-bottom: none; }
-            
-            /* RESET FLEX FOR MOBILE: Equal split again side-by-side */
+            /* Reset specific desktop sizing for mobile */
             .select-section:nth-of-type(1) { flex: 1 !important; max-height: none !important; }
             .select-section:nth-of-type(2) { flex: 1 !important; }
             
@@ -307,15 +239,30 @@
             .select-section:nth-of-type(2) .grid-selector { grid-template-columns: repeat(5, 1fr) !important; }
             .grid-selector { gap: 4px; padding: 10px; }
 
-            .col-results { order: 3; width: 100%; flex: none; height: auto; min-height: 500px; overflow: visible; }
+            /* Results & Library: Reduce min-height to remove gap */
+            .col-results { order: 3; width: 100%; flex: none; height: auto; min-height: 200px; overflow: visible; }
             .result-area { overflow: visible; padding-bottom: 30px; }
             
-            .target-library { height: auto; min-height: 220px; padding-bottom: 20px; }
-            .lib-scroll { justify-content: center; display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; padding: 15px; }
-            .lib-icon { width: 100%; height: auto; aspect-ratio: 1/1; max-width: 60px; margin: 0 auto; }
-
-            h1 { font-size: 1rem; }
-            .search-wrapper { max-width: none; }
+            /* Library Layout Mobile Fix */
+            .target-library { height: auto; min-height: 200px; padding-bottom: 30px; }
+            .lib-scroll { display: flex; flex-direction: column; gap: 15px; padding: 10px; }
+            
+            /* MERGE BALL ROWS FIX: Force row direction so they wrap horizontally */
+            .lib-group-vertical { 
+                display: flex; 
+                flex-direction: row !important; /* IMPORTANT: Overrides desktop 'column' */
+                flex-wrap: wrap; 
+                justify-content: center; 
+                gap: 6px; 
+            }
+            /* display: contents effectively removes the row divs from the layout, letting icons flow */
+            .lib-group-vertical .lib-row-centered { display: contents; } 
+            
+            /* Passives */
+            .lib-scroll > .lib-row-centered { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+            
+            .lib-separator { width: 90%; margin: 10px auto; }
+            .lib-icon { width: 48px; height: 48px; margin: 0; flex: 0 0 auto; }
         }
     </style>
 </head>
