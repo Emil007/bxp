@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ball x Pit Evolution Helper</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    
+    <style>
+        :root {
+            --bg-core: #0a0a0c; --bg-panel: #111114; --border-main: #3d3d42; --border-highlight: #e0c060; 
+            --text-main: #e0e0e0; --accent-blue: #4db3ff; --accent-green: #50fa7b; --accent-red: #ff5555;
+            --accent-gold: #ffd700; --accent-purple: #bd93f9; --warning: #ffb86c;
+        }
+        @font-face { font-family: 'Pixel'; src: local('Courier New'); }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            font-family: 'Segoe UI', 'Courier New', monospace; background-color: var(--bg-core); color: var(--text-main);
+            margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+            background-image: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+        }
+
+        [v-cloak] { display: none; }
+
+        /* HEADER */
+        header {
+            background: rgba(0,0,0,0.95); border-bottom: 2px solid var(--border-main); padding: 0 15px; height: 50px;
+            display: flex; justify-content: space-between; align-items: center; gap: 15px; z-index: 100; flex-shrink: 0;
+        }
+        h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; color: var(--border-highlight); letter-spacing: 2px; font-weight: 900; white-space: nowrap; }
+        
+        .search-wrapper { flex: 1; max-width: 400px; position: relative; }
+        .search-input { 
+            width: 100%; background: #000; border: 1px solid #333; color: #fff; padding: 6px 10px 6px 30px; 
+            border-radius: 4px; font-family: inherit; font-size: 0.85rem; transition: all 0.2s ease;
+        }
+        .search-input:focus { border-color: var(--accent-blue); outline: none; box-shadow: 0 0 15px rgba(77, 179, 255, 0.3); }
+        .search-icon { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); opacity: 0.5; font-size: 0.8rem; }
+
+        .header-controls { display: flex; gap: 10px; }
+        button { 
+            font-family: inherit; text-transform: uppercase; border-radius: 4px; cursor: pointer; border: 1px solid transparent; 
+            padding: 6px 12px; font-weight: bold; font-size: 0.75rem; transition: all 0.1s;
+        }
+        button:active { transform: scale(0.95); }
+        .btn-reset { background: #321; color: #fcc; border-color: #522; }
+        .btn-undo { background: #1a1a20; color: #aaa; border: 1px solid #334; }
+        .btn-undo:disabled { opacity: 0.3; cursor: default; transform: none; }
+        
+        .btn-slot { background: #1a1a20; color: #777; border: 1px solid #334; min-width: 30px; display: flex; justify-content: center; }
+        .btn-slot.active { background: #0a2a0a; color: #afa; border-color: var(--accent-green); }
+
+        /* LAYOUT */
+        .main-container { display: flex; height: calc(100vh - 50px); overflow: hidden; }
+        .col-select { flex: 0 0 280px; background: var(--bg-panel); border-right: 2px solid var(--border-main); display: flex; flex-direction: column; }
+        .col-inv { flex: 0 0 140px; background: #0c0c0e; border-right: 2px solid var(--border-main); padding: 15px 5px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+        .col-results { flex: 1; display: flex; flex-direction: column; background: #08080a; overflow: hidden; position: relative; }
+
+        .select-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; border-bottom: 2px solid var(--border-main); }
+        .section-header { background: #1a1a1d; padding: 6px; font-size: 0.8rem; color: #888; text-align: center; border-bottom: 1px solid #333; text-transform: uppercase; letter-spacing: 1px; }
+        .grid-scroll { flex: 1; overflow-y: auto; padding: 10px; }
+        .grid-selector { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 8px; }
+
+        /* ITEMS */
+        .item-btn {
+            background: #111; border: 1px solid #333; aspect-ratio: 1 / 1; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; border-radius: 6px; 
+            transition: all 0.2s; position: relative; overflow: hidden;
+        }
+        .item-btn img { width: 90%; height: 90%; object-fit: contain; opacity: 0.7; transition: 0.2s; }
+        .item-btn:hover { 
+            border-color: var(--accent-blue); box-shadow: 0 0 15px rgba(77, 179, 255, 0.4); 
+            transform: translateY(-2px) scale(1.05); z-index: 2;
+        }
+        .item-btn:hover img { opacity: 1; }
+        .item-btn.targeted { border-color: var(--accent-blue); box-shadow: inset 0 0 10px rgba(0, 210, 255, 0.3); }
+        .item-btn.active { 
+            border: 2px solid var(--accent-green) !important; background: #0a1a0a; box-shadow: 0 0 10px rgba(80, 250, 123, 0.2); 
+        }
+        .item-btn.active img { opacity: 0.4; filter: grayscale(100%); }
+        .count-badge { position: absolute; bottom: 2px; right: 2px; background: var(--accent-blue); color: #000; font-size: 0.65rem; font-weight: 900; padding: 1px 4px; border-radius: 3px; pointer-events: none; line-height: 1; }
+
+        /* INVENTORY */
+        .inv-group { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .inv-header { display: flex; align-items: center; gap: 10px; width: 100%; justify-content: center; margin-bottom: 4px; }
+        .inv-label { font-size: 0.7rem; color: #555; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .slot-unlock-btn { 
+            background: #111; border: 1px solid #333; color: #555; width: 20px; height: 20px; 
+            display: flex; align-items: center; justify-content: center; font-size: 10px; border-radius: 4px; cursor: pointer; 
+        }
+        .slot-unlock-btn.active { border-color: var(--accent-green); color: var(--accent-green); background: #051505; }
+        .slot-unlock-btn:hover { border-color: #fff; color: #fff; }
+
+        .slot {
+            width: 68px; height: 68px; background: #050505; border: 2px solid #2a2a2a; border-radius: 8px;
+            display: flex; justify-content: center; align-items: center; position: relative; 
+            transition: all 0.2s; box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+        }
+        .slot:not(.filled):not(.blocked-slot):hover {
+            border-color: var(--accent-blue); transform: scale(1.03); cursor: pointer;
+        }
+        .slot.filled { 
+            border-color: var(--border-highlight); background: radial-gradient(circle at center, #2a2200 0%, #080808 100%); 
+            cursor: grab; box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+        .slot.filled:hover { border-color: #fff; }
+        .slot.filled img { width: 50px; height: 50px; object-fit: contain; filter: drop-shadow(0 0 5px rgba(255,215,0,0.3)); pointer-events: none;}
+        
+        .slot.reserved { border-color: var(--accent-blue); }
+        .slot.reserved::after { 
+            content: "🎯"; position: absolute; bottom: -8px; right: -8px; 
+            font-size: 14px; background: #000; border-radius: 50%; padding: 3px; border: 1px solid var(--accent-blue);
+            z-index: 5; box-shadow: 0 0 5px var(--accent-blue);
+        }
+        .slot.blocked-slot { 
+            border-color: #444; background: repeating-linear-gradient(45deg, #1a1a1a, #1a1a1a 10px, #333 10px, #333 20px);
+            cursor: not-allowed; box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+        }
+        .slot.is-fused { border: 2px solid var(--accent-purple); background: radial-gradient(circle at center, #1a0a2a 0%, #05020a 100%); }
+        .slot.selected { 
+            border-color: var(--accent-gold); background: #1a1500; animation: pulse-gold 1.5s infinite; z-index: 10; transform: scale(1.05);
+        }
+        @keyframes pulse-gold { 0%, 100% { border-color: var(--accent-gold); } 50% { border-color: #866000; } }
+        .slot.valid-target { border-color: var(--accent-green); background: #051505; transform: scale(1.05); cursor: pointer; }
+        .slot.drag-over { border-color: var(--accent-purple) !important; background: #1a1020 !important; transform: scale(1.1) !important; }
+        
+        .slot-remove { 
+            position: absolute; inset: 0; background: rgba(0,0,0,0.85); color: var(--accent-red); display: none;
+            align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer; border-radius: 6px; z-index: 20;
+            backdrop-filter: blur(2px);
+        }
+        .slot.filled:hover .slot-remove { display: flex; }
+        .fused-display { display: flex; width: 100%; height: 100%; padding: 4px; gap: 2px; justify-content: center; }
+        .fused-display img { width: 45%; height: 100%; object-fit: contain; }
+
+        /* RESULTS */
+        .result-area { flex: 1; overflow-y: auto; padding: 15px; position: relative; }
+        .list-move, .list-enter-active, .list-leave-active { transition: all 0.4s cubic-bezier(0.25, 1.2, 0.5, 1); }
+        .list-enter-from, .list-leave-to { opacity: 0; transform: translateY(20px) scale(0.9); }
+        .list-leave-active { position: absolute; width: calc(100% - 30px); }
+
+        .evo-card {
+            background: #131315; border: 1px solid #2a2a2a; margin-bottom: 10px; padding: 8px 12px;
+            display: flex; flex-direction: column; gap: 10px; border-radius: 6px; 
+            transition: all 0.2s; position: relative;
+        }
+        .evo-main-row { display: flex; align-items: center; gap: 15px; width: 100%; }
+        .evo-card.ready { border: 2px solid var(--accent-green); background: linear-gradient(90deg, #0a1a0a, #131315); }
+        .evo-card.target-active { border: 2px solid var(--accent-blue); background: linear-gradient(90deg, #0a141a, #131315); }
+        .evo-card.synergy { background: #1a2a3a; border-color: var(--accent-blue); }
+
+        .evo-main-img { width: 56px; height: 56px; background: #000; border: 1px solid #333; border-radius: 6px; padding: 2px; flex-shrink: 0; }
+        .evo-details { flex: 1; }
+        .evo-name { font-size: 1rem; font-weight: bold; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        
+        .req-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+        .req-or { font-size: 0.6rem; color: #666; font-weight: bold; }
+
+        .req-chip { 
+            display: inline-flex; align-items: center; gap: 6px; background: #050505; padding: 2px 8px 2px 4px; margin-right: 4px;
+            border: 1px solid #333; border-radius: 4px; height: 28px; transition: all 0.2s; cursor: pointer;
+        }
+        .req-chip img { width: 20px; height: 20px; }
+        .req-chip span { font-size: 0.75rem; color: #888; }
+        .req-chip.miss { border-color: #522; }
+        .req-chip.miss:hover { border-color: var(--accent-red); background: #1a0a0a; }
+        .req-chip.ok { border-color: #252; background: #0a1a0a; }
+        .req-chip.ok span { color: var(--accent-green); }
+
+        .sub-recipe-box { background: rgba(0,0,0,0.3); border-top: 1px dashed #333; padding-top: 8px; width: 100%; display: flex; flex-direction: column; gap: 6px; }
+        .sub-row { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: #888; flex-wrap: wrap; }
+        .req-chip.sub { height: 24px; padding: 1px 6px; font-size: 0.7rem; }
+
+        .status-badge { font-size: 0.6rem; font-weight: bold; border-radius: 3px; padding: 2px 4px; text-transform: uppercase; margin-left: auto; }
+        .badge-target { background: var(--accent-blue); color: #000; }
+        
+        .target-library { 
+            height: 220px; background: #0e0e10; border-top: 2px solid var(--border-main); padding: 4px; 
+            display: flex; flex-direction: column; 
+        }
+        .lib-header { font-size: 0.65rem; color: #555; text-align: center; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; }
+        .lib-scroll { overflow-y: auto; flex: 1; display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; align-content: flex-start; padding: 5px; }
+        .lib-icon { 
+            width: 44px; height: 44px; border: 1px solid #222; background: #050505; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center; border-radius: 4px; opacity: 0.7; 
+            transition: all 0.2s;
+        }
+        .lib-icon img { width: 85%; height: 85%; object-fit: contain; }
+        .lib-icon:hover { opacity: 1; transform: translateY(-3px) scale(1.1); background: #151515; z-index: 5; border-color: #555; }
+        .lib-icon.is-target { border-color: var(--accent-blue); background: #001a2a; opacity: 1; box-shadow: 0 0 5px var(--accent-blue); }
+        .lib-icon.synergy { border-color: var(--accent-blue); box-shadow: 0 0 8px rgba(0, 210, 255, 0.5); opacity: 1; background: #0a2a3a; z-index: 6; }
+        
+        .btn-group { display: flex; gap: 6px; }
+        .action-btn { background: #1a3a1a; color: #bfb; border: 1px solid #262; padding: 4px 10px; }
+        .untarget-btn { background: #1a2a3a; color: #bdf; border: 1px solid var(--accent-blue); padding: 4px 10px; }
+        .target-btn { background: #111; color: #777; border: 1px solid #333; padding: 4px 10px; }
+        
+        #tooltip {
+            position: fixed; background: rgba(12, 12, 14, 0.98); border: 2px solid var(--border-highlight);
+            color: #fff; padding: 12px; z-index: 9999; pointer-events: none; border-radius: 8px; 
+            font-size: 0.85rem; max-width: min(280px, calc(100vw - 20px)); backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .tt-header { color:var(--border-highlight); font-weight:900; margin-bottom:6px; border-bottom:2px solid #333; padding-bottom: 4px; font-size: 1rem; }
+        .tt-desc { color:#bbb; font-style:italic; line-height:1.4; }
+        .tt-ing-row { display: flex; gap: 6px; justify-content: center; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #333; }
+        .tt-ing-row img { width: 28px; height: 28px; border: 1px solid #444; background: #000; padding: 3px; border-radius: 4px; }
+
+        /* --- MOBILE --- */
+        @media (max-width: 900px) {
+            body { height: auto; overflow-y: scroll; display: block; position: relative; }
+            .main-container { flex-direction: column; height: auto; overflow: visible; display: flex; }
+
+            .col-inv {
+                order: 1; width: 100%; flex: none; flex-direction: column; gap: 15px; padding: 20px 5px;
+                border-right: none; border-bottom: 2px solid var(--border-main); background: #08080a;
+            }
+            .inv-group { width: 100%; } 
+            
+            .slot-row-mobile { display: flex; justify-content: center; gap: 12px; width: 100%; }
+            .slot { width: 16vw; height: 16vw; max-width: 60px; max-height: 60px; } 
+            .slot.filled .slot-remove { display: flex; opacity: 0.8; font-size: 1.2rem; top: -8px; right: -8px; left: auto; bottom: auto; background: #500; width: 24px; height: 24px; border-radius: 50%; border: 2px solid #f55; }
+
+            .col-select {
+                order: 2; width: 100%; flex: none; height: 380px; flex-direction: row;
+                border-right: none; border-bottom: 2px solid var(--border-main);
+            }
+            .select-section { width: 50%; border-right: 1px solid #333; border-bottom: none; }
+            .grid-selector { grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 15px; }
+
+            .col-results { order: 3; width: 100%; flex: none; height: auto; min-height: 500px; overflow: visible; }
+            .result-area { overflow: visible; padding-bottom: 30px; }
+            
+            .target-library { height: auto; min-height: 220px; padding-bottom: 20px; }
+            .lib-scroll { justify-content: center; display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 15px; }
+            .lib-icon { width: 100%; height: auto; aspect-ratio: 1/1; max-width: 60px; margin: 0 auto; }
+
+            h1 { font-size: 1rem; }
+            .search-wrapper { max-width: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app" v-cloak>
+
+    <div id="tooltip" v-if="hoveredItem" :style="{ top: ttY + 'px', left: ttX + 'px' }">
+        <div v-if="hoveredItem.fused">
+            <div class="tt-header" style="color:var(--accent-purple); border-color:var(--accent-purple);">FUSED ITEM</div>
+            <div class="tt-desc">
+                {{ findItem(hoveredItem.parts[0]).name || hoveredItem.parts[0] }} + 
+                {{ findItem(hoveredItem.parts[1]).name || hoveredItem.parts[1] }}
+            </div>
+            <div class="tt-ing-row">
+                <img :src="'images/' + findItem(hoveredItem.parts[0]).img">
+                <img :src="'images/' + findItem(hoveredItem.parts[1]).img">
+            </div>
+        </div>
+        <div v-else>
+            <div class="tt-header">
+                {{ hoveredItem.name || hoveredItem.id }}
+            </div>
+            <div class="tt-desc">{{ hoveredItem.desc }}</div>
+            <div v-if="hoveredItem.req" style="margin-top: 8px;">
+                <div v-for="(recipe, idx) in hoveredItem.req" :key="idx" class="tt-ing-row" style="margin-top:4px; padding-top:4px; border:none;">
+                     <span v-if="idx > 0" style="color:#555; font-size:0.7rem; margin-right:5px;">OR</span>
+                     <img v-for="rId in recipe" :src="'images/' + findItem(rId).img">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <header>
+        <h1>Ball x Pit Evos<span style="font-size:0.6em; color:#555;"> by Emil007</span></h1>
+        <div class="search-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="search-input" v-model="searchQuery" placeholder="Search balls, passives...">
+        </div>
+        <div class="header-controls">
+            <button class="btn-undo" :disabled="historyStack.length === 0" @click="undo">Undo</button>
+            <button class="btn-reset" @click="resetAll">Reset</button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="col-select">
+            <div class="select-section">
+                <div class="section-header">Base Balls</div>
+                <div class="grid-scroll">
+                    <div class="grid-selector">
+                        <div v-for="item in filteredBalls" :key="item.id" 
+                             class="item-btn" 
+                             :class="{ active: isInInventory(item.id), targeted: isNeededForTarget(item.id) && !isInInventory(item.id) }"
+                             @click="addItem('ball', item.id)"
+                             @mouseenter="setHover(item)" @mouseleave="clearHover">
+                            <img :src="'images/' + item.img">
+                            <div v-if="getNeededCount(item.id) > 1" class="count-badge">x{{ getNeededCount(item.id) }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="select-section">
+                <div class="section-header">Base Passives</div>
+                <div class="grid-scroll">
+                    <div class="grid-selector">
+                        <div v-for="item in filteredPassives" :key="item.id" 
+                             class="item-btn"
+                             :class="{ active: isInInventory(item.id), targeted: isNeededForTarget(item.id) && !isInInventory(item.id) }"
+                             @click="addItem('passive', item.id)"
+                             @mouseenter="setHover(item)" @mouseleave="clearHover">
+                            <img :src="'images/' + item.img">
+                            <div v-if="getNeededCount(item.id) > 1" class="count-badge">x{{ getNeededCount(item.id) }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-inv">
+            <div class="inv-group">
+                <div class="inv-header">
+                    <div class="inv-label">Weapons</div>
+                    <button class="btn-slot" :class="{active: maxSlotsW === 5}" @click="toggleSlotW">
+                        {{ maxSlotsW === 5 ? '🔓' : '🔒' }}
+                    </button>
+                </div>
+                <div class="slot-row-mobile">
+                    <div v-for="(slot, index) in myWeapons" :key="'w'+index"
+                        class="slot"
+                        :class="{ 
+                            filled: slot, 
+                            'is-fused': slot && slot.fused, 
+                            selected: selectedSlot && selectedSlot.type === 'ball' && selectedSlot.index === index,
+                            'valid-target': selectedSlot && selectedSlot.type === 'ball' && selectedSlot.index !== index,
+                            'drag-over': dragOverIndex === index && dragOverType === 'ball', 
+                            reserved: isReserved(index, 'ball'),
+                        }"
+                        @click="handleSlotClick(index, 'ball')"
+                        @mouseenter="slot ? (slot.fused ? setHover(slot) : setHover(findItem(slot.id))) : null"
+                        @mouseleave="clearHover"
+                        @dragover.prevent="onDragOver(index, 'ball')"
+                        @dragleave="dragOverIndex = null"
+                        @drop="onDrop(index, 'ball')"
+                        draggable="true"
+                        @dragstart="onDragStart(index, 'ball')">
+                        
+                        <div v-if="slot" style="width:100%; height:100%; display:flex; justify-content:center; align-items:center;">
+                            <div v-if="slot.fused" class="fused-display">
+                                <img :src="'images/' + findItem(slot.parts[0]).img">
+                                <img :src="'images/' + findItem(slot.parts[1]).img">
+                            </div>
+                            <img v-else :src="'images/' + findItem(slot.id).img">
+                            <div class="slot-remove" @click.stop="removeItem('ball', index)">×</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="inv-group">
+                <div class="inv-header">
+                    <div class="inv-label">Passives</div>
+                    <button class="btn-slot" :class="{active: maxSlotsP === 5}" @click="toggleSlotP">
+                         {{ maxSlotsP === 5 ? '🔓' : '🔒' }}
+                    </button>
+                </div>
+                <div class="slot-row-mobile">
+                    <div v-for="(slot, index) in myPassives" :key="'p'+index"
+                        class="slot"
+                        :class="{ 
+                            filled: slot.data, 
+                            'blocked-slot': slot.locked, 
+                            'is-fused': slot.data && slot.data.fused, 
+                            selected: selectedSlot && selectedSlot.type === 'passive' && selectedSlot.index === index,
+                            'valid-target': selectedSlot && selectedSlot.type === 'passive' && selectedSlot.index !== index,
+                            'drag-over': dragOverIndex === index && dragOverType === 'passive', 
+                            reserved: isReserved(index, 'passive'),
+                        }"
+                        @click="handleSlotClick(index, 'passive')"
+                        @mouseenter="slot.data ? (slot.data.fused ? setHover(slot.data) : setHover(findItem(slot.data.id))) : null"
+                        @mouseleave="clearHover"
+                        @dragover.prevent="onDragOver(index, 'passive')"
+                        @dragleave="dragOverIndex = null"
+                        @drop="onDrop(index, 'passive')"
+                        :draggable="!!slot.data"
+                        @dragstart="onDragStart(index, 'passive')">
+                        
+                        <div v-if="slot.data" style="width:100%; height:100%; display:flex; justify-content:center; align-items:center;">
+                            <div v-if="slot.data.fused" class="fused-display">
+                                <img :src="'images/' + findItem(slot.data.parts[0]).img">
+                                <img :src="'images/' + findItem(slot.data.parts[1]).img">
+                            </div>
+                            <img v-else :src="'images/' + findItem(slot.data.id).img">
+                            <div class="slot-remove" @click.stop="removeItem('passive', index)">×</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-results">
+            <div class="result-area">
+                <transition-group name="list" tag="div">
+                    <div v-for="s in sortedSuggestions" :key="s.evo.id" 
+                         class="evo-card" 
+                         :class="{ 
+                            ready: s.ready, 
+                            'target-active': s.target,
+                            synergy: isSynergy(s.evo.id)
+                         }"
+                         @mouseenter="setHover(s.evo)" @mouseleave="clearHover">
+                        
+                        <div class="evo-main-row">
+                            <img :src="'images/' + s.evo.img" class="evo-main-img">
+                            <div class="evo-details">
+                                <div class="evo-name">
+                                    <span v-if="s.conflict" style="color:var(--warning); margin-right:5px;">⚠️</span>
+                                    {{ s.evo.name || s.evo.id }}
+                                    <div v-if="s.target" class="status-badge badge-target">Target</div>
+                                </div>
+                                <div class="evo-reqs">
+                                    <div v-for="(recipe, rIdx) in s.displayRecipes" :key="rIdx" class="req-row">
+                                        <div v-if="rIdx > 0" class="req-or">OR</div>
+                                        <div v-for="part in recipe.parts" :key="part"
+                                             class="req-chip" 
+                                             :class="isInInventory(part) ? 'ok' : 'miss'"
+                                             @click.stop="addItem(getType(part), part)">
+                                            <img :src="'images/' + findItem(part).img">
+                                            <span>{{ findItem(part).name || part }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="btn-group">
+                                <button v-if="s.target" class="untarget-btn" @click.stop="toggleTarget(s.evo.id)">UNTARGET</button>
+                                <button v-else class="target-btn" @click.stop="toggleTarget(s.evo.id)">TARGET</button>
+                                <button v-if="s.ready" class="action-btn" @click.stop="evolve(s)">Evolve</button>
+                            </div>
+                        </div>
+                        
+                        <div v-if="s.subRecipes && s.subRecipes.length > 0" class="sub-recipe-box">
+                            <div v-for="sub in s.subRecipes" :key="sub.id" class="sub-row">
+                                <span style="margin-left:4px;">Need for <strong>{{findItem(sub.id).name || sub.id}}</strong>:</span>
+                                <div v-for="ing in sub.req" :key="ing"
+                                     class="req-chip sub" 
+                                     :class="isInInventory(ing) ? 'ok' : 'miss'"
+                                     @click.stop="addItem(getType(ing), ing)"
+                                     @mouseenter.stop="setHover(findItem(ing))"
+                                     @mouseleave.stop="setHover(s.evo)">
+                                    <img :src="'images/' + findItem(ing).img">
+                                    <span>{{ findItem(ing).name || ing }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </transition-group>
+            </div>
+
+            <div class="target-library">
+                <div class="lib-header">Evolution Targets Library</div>
+                <div class="lib-scroll">
+                    <div v-for="item in evoBalls" :key="item.id" 
+                         class="lib-icon"
+                         :class="{ 'is-target': targetedIds.includes(item.id), synergy: isSynergy(item.id) }"
+                         @click="toggleTarget(item.id)"
+                         @mouseenter="setHover(item)" @mouseleave="clearHover">
+                        <img :src="'images/' + item.img">
+                    </div>
+                    <div style="width:100%; height:15px; flex-shrink:0;"></div>
+                    <div v-for="item in evoPassives" :key="item.id" 
+                         class="lib-icon"
+                         :class="{ 'is-target': targetedIds.includes(item.id), synergy: isSynergy(item.id) }"
+                         @click="toggleTarget(item.id)"
+                         @mouseenter="setHover(item)" @mouseleave="clearHover">
+                        <img :src="'images/' + item.img">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// DATA
+    const baseBalls = [ 
+        { id: 'Bleed', img: 'Bleed.webp', desc: "Inflicts bleed (1 dmg/stack). Max 8 stacks." }, 
+        { id: 'Brood Mother', img: 'Brood_Mother.webp', desc: "25% chance to birth a Baby Ball on hit." }, 
+        { id: 'Burn', img: 'Burn.webp', desc: "Applies burn (4-8 dmg/sec). Max 3 stacks." }, 
+        { id: 'Cell', img: 'Cell.webp', desc: "Splits into clone on hit 2 times." }, 
+        { id: 'Charm', img: 'Charm.webp', desc: "4% chance to charm enemy (they attack others)." }, 
+        { id: 'Dark', img: 'Dark.webp', desc: "3.0x Damage but destroys itself on hit. 3s cooldown." }, 
+        { id: 'Earthquake', img: 'Earthquake.webp', desc: "Deals 5-13 damage in 3x3 area." }, 
+        { id: 'Egg Sac', img: 'Egg_Sac.webp', desc: "Explodes into 2-4 Baby Balls. 3s cooldown." }, 
+        { id: 'Freeze', img: 'Freeze.webp', desc: "4% chance to freeze (25% more dmg taken)." }, 
+        { id: 'Ghost', img: 'Ghost.webp', desc: "Passes through enemies." }, 
+        { id: 'Iron', img: 'Iron.webp', desc: "Double damage but 40% slower." }, 
+        { id: 'Laser (H)', name: 'Laser Hor.', img: 'Laser_(Horizontal).webp', desc: "Damage all enemies in row." }, 
+        { id: 'Laser (V)', name: 'Laser Ver.', img: 'Laser_(Vertical).webp', desc: "Damage all enemies in column." }, 
+        { id: 'Light', img: 'Light.webp', desc: "Blinds enemies (50% miss chance)." }, 
+        { id: 'Lightning', img: 'Lightning.webp', desc: "1-20 damage to up to 3 nearby enemies." }, 
+        { id: 'Poison', img: 'Poison.webp', desc: "Applies poison (1-4 dmg/sec). Max 5 stacks." }, 
+        { id: 'Stone', img: 'Stone.webp', desc: "Deals damage based on weight/armor." }, 
+        { id: 'Vampire', img: 'Vampire.webp', desc: "4.5% chance to heal 1 health." }, 
+        { id: 'Wind', img: 'Wind.webp', desc: "Passes through & slows by 30%. Deals -25% dmg." } 
+    ];
+
+    const evoBalls = [ 
+        { id: 'Assassin', img: 'Assassin.webp', desc: "Backstabs deal 30% bonus damage.", req: [['Iron', 'Ghost'], ['Iron', 'Dark']] }, 
+        { id: 'Banished Flame', img: 'Banished_Flame.webp', desc: "Darkfire damage (Burn + Dark).", req: [['Burn', 'Dark']] }, 
+        { id: 'Berserk', img: 'Berserk.webp', desc: "30% chance to make enemies Berserk.", req: [['Charm', 'Bleed'], ['Charm', 'Burn']] }, 
+        { id: 'Black Hole', img: 'Black_Hole.webp', desc: "Insta-kill first non-boss. 7s cooldown.", req: [['Dark', 'Sun']] }, 
+        { id: 'Blizzard', img: 'Blizzard.webp', desc: "Freezes all enemies in 2 tile radius.", req: [['Freeze', 'Wind'], ['Freeze', 'Lightning']] }, 
+        { id: 'Bomb', img: 'Bomb.webp', desc: "Explodes for 150-300 dmg. 3s cooldown.", req: [['Burn', 'Iron']] }, 
+        { id: 'Brimstone', img: 'Brimstone.webp', desc: "Applies Burn & Poison in area.", req: [['Stone', 'Burn'], ['Poison', 'Burn']] }, 
+        { id: 'Catapult', img: 'Catapult.webp', desc: "Launches stone baby balls.", req: [['Stone', 'Egg Sac']] }, 
+        { id: 'Flash', img: 'Flash.webp', desc: "Global damage & blind after hit.", req: [['Lightning', 'Light']] }, 
+        { id: 'Flicker', img: 'Flicker.webp', desc: "Global dmg every 1.4s.", req: [['Light', 'Dark']] }, 
+        { id: 'Fireworks', img: 'Fireworks.webp', desc: "Explodes into 3-6 fireworks.", req: [['Burn', 'Egg Sac']] }, 
+        { id: 'Freeze Ray', img: 'Freeze_Ray.webp', desc: "Freeze ray beam + damage.", req: [['Freeze', 'Laser (H)'], ['Freeze', 'Laser (V)']] }, 
+        { id: 'Frozen Flame', img: 'Frozen_Flame.webp', desc: "Frostburn (dmg + vuln).", req: [['Burn', 'Freeze']] }, 
+        { id: 'Glacier', img: 'Glacier.webp', desc: "Spikes deal dmg + freeze.", req: [['Freeze', 'Earthquake']] }, 
+        { id: 'Hemorrhage', img: 'Hemorrhage.webp', desc: "Consumes bleed for massive dmg.", req: [['Bleed', 'Iron']] }, 
+        { id: 'Holy Laser', img: 'Holy_Laser.webp', desc: "Cross laser damage.", req: [['Laser (H)', 'Laser (V)']] }, 
+        { id: 'Incubus', img: 'Incubus.webp', desc: "Charmed enemies curse others.", req: [['Charm', 'Dark']] }, 
+        { id: 'Inferno', img: 'Inferno.webp', desc: "Burns area radius.", req: [['Burn', 'Wind']] }, 
+        { id: 'Landslide', img: 'Landslide.webp', desc: "Stone dmg + Earthquake AoE.", req: [['Stone', 'Earthquake']] }, 
+        { id: 'Laser Beam', img: 'Laser_Beam.webp', desc: "Laser + Blind.", req: [['Light', 'Laser (H)'], ['Light', 'Laser (V)']] }, 
+        { id: 'Laser Cutter', img: 'Laser_Cutter.webp', desc: "High power laser beam.", req: [['Steel', 'Laser (H)'], ['Steel', 'Laser (V)']] }, 
+        { id: 'Leech', img: 'Leech.webp', desc: "Attaches leeches (rapid bleed).", req: [['Brood Mother', 'Bleed']] }, 
+        { id: 'Lightning Rod', img: 'Lightning_Rod.webp', desc: "Enemies struck by lightning periodically.", req: [['Lightning', 'Iron']] }, 
+        { id: 'Lovestruck', img: 'Lovestruck.webp', desc: "Enemies heal you on attack.", req: [['Charm', 'Light'], ['Charm', 'Lightning']] }, 
+        { id: 'Maggot', img: 'Maggot.webp', desc: "Enemies explode into Baby Balls.", req: [['Brood Mother', 'Cell']] }, 
+        { id: 'Magma', img: 'Magma.webp', desc: "Lava blobs deal dmg + burn.", req: [['Burn', 'Earthquake']] }, 
+        { id: 'Mosquito King', img: 'Mosquito_King.webp', desc: "Spawns lifesteal mosquitos.", req: [['Vampire', 'Brood Mother']] }, 
+        { id: 'Mosquito Swarm', img: 'Mosquito_Swarm.webp', desc: "Explodes into mosquitos.", req: [['Vampire', 'Egg Sac']] }, 
+        { id: 'Noxious', img: 'Noxious.webp', desc: "AoE Poison cloud.", req: [['Poison', 'Wind'], ['Dark', 'Wind']] }, 
+        { id: 'Nuclear Bomb', img: 'Nuclear_Bomb.webp', desc: "Huge dmg + Radiation (dmg vuln).", req: [['Bomb', 'Poison']] }, 
+        { id: 'Overgrowth', img: 'Overgrowth.webp', desc: "Stacking area nuke.", req: [['Earthquake', 'Cell']] }, 
+        { id: 'Phantom', img: 'Phantom.webp', desc: "Curses enemies (delayed burst).", req: [['Dark', 'Ghost']] }, 
+        { id: 'Radiation Beam', img: 'Radiation_Beam.webp', desc: "Beam applies Radiation.", req: [['Laser (H)', 'Poison'], ['Laser (H)', 'Cell'], ['Laser (V)', 'Poison'], ['Laser (V)', 'Cell']] }, 
+        { id: 'Sacrifice', img: 'Sacrifice.webp', desc: "Bleed + Curse.", req: [['Bleed', 'Dark']] }, 
+        { id: 'Sandstorm', img: 'Sandstorm.webp', desc: "AoE storm dmg + blind.", req: [['Earthquake', 'Wind']] }, 
+        { id: 'Satan', img: 'Satan.webp', desc: "Global Burn + Berserk.", req: [['Incubus', 'Succubus']] }, 
+        { id: 'Shotgun', img: 'Shotgun.webp', desc: "Wall hit shoots 3-7 Iron balls.", req: [['Iron', 'Egg Sac']] }, 
+        { id: 'Soul Sucker', img: 'Soul_Sucker.webp', desc: "Saps hp + reduces enemy dmg.", req: [['Vampire', 'Ghost']] }, 
+        { id: 'Spider Queen', img: 'Spider_Queen.webp', desc: "Births Egg Sacs on hit.", req: [['Brood Mother', 'Egg Sac']] }, 
+        { id: 'Steel', img: 'Steel.webp', desc: "Evolved Iron. Heavy impact.", req: [['Iron', 'Stone']] }, 
+        { id: 'Storm', img: 'Storm.webp', desc: "Strikes nearby enemies.", req: [['Lightning', 'Wind']] }, 
+        { id: 'Succubus', img: 'Succubus.webp', desc: "Heal when hitting charmed units.", req: [['Charm', 'Vampire']] }, 
+        { id: 'Sun', img: 'Sun.webp', desc: "Global blind + burn.", req: [['Burn', 'Light']] }, 
+        { id: 'Swamp', img: 'Swamp.webp', desc: "Tar blobs slow + poison.", req: [['Poison', 'Earthquake']] }, 
+        { id: 'Vampire Lord', img: 'Vampire_Lord.webp', desc: "Massive heal on bleeding enemies.", req: [['Vampire', 'Bleed'], ['Vampire', 'Dark']] }, 
+        { id: 'Virus', img: 'Virus.webp', desc: "Spreading disease DoT.", req: [['Poison', 'Ghost'], ['Poison', 'Cell']] }, 
+        { id: 'Voluptuous Egg Sac', img: 'Voluptuous_Egg_Sac.webp', desc: "Explodes into multiple Egg Sacs.", req: [['Egg Sac', 'Cell']] }, 
+        { id: 'Wraith', img: 'Wraith.webp', desc: "Freezes enemies passed through.", req: [['Freeze', 'Ghost']] }, 
+        { id: 'Nosferatu', img: 'Nosferatu.webp', desc: "Spawns Bats > Vampire Lords.", req: [['Vampire Lord', 'Spider Queen', 'Mosquito King']] } 
+    ];
+
+    const basePassives = [ 
+        { id: 'Baby Rattle', img: 'Baby_Rattle.webp', desc: "1.5x Baby Balls, scattered aim." }, 
+        { id: 'War Horn', img: 'War_Horn.webp', desc: "Baby Balls deal 20% more dmg." }, 
+        { id: 'Reachers Spear', name:"Spear", img: 'Reachers_Spear.webp', desc: "Crit chance in same column." }, 
+        { id: 'Deadeyes Amulet', name:"Amulet", img: 'Deadeyes_Amulet.webp', desc: "Crit deals bonus dmg." }, 
+        { id: 'Wretched Onion', img: 'Wretched_Onion.webp', desc: "Aura damage nearby." }, 
+        { id: 'Breastplate', img: 'Breastplate.webp', desc: "-10% dmg taken." }, 
+        { id: 'Ghostly Corset', img: 'Ghostly_Corset.webp', desc: "Pass through + side hit bonus." }, 
+        { id: 'Ethereal Cloak', img: 'Ethereal_Cloak.webp', desc: "Pass through + dmg until back." }, 
+        { id: 'Vampiric Sword', img: 'Vampiric_Sword.webp', desc: "Kill heals 5, shot hurts 2." }, 
+        { id: 'Everflowing Goblet', img: 'Everflowing_Goblet.webp', desc: "Overheal capacity." }, 
+        { id: 'Spiked Collar', img: 'Spiked_Collar.webp', desc: "Melee thorns damage." }, 
+        { id: 'Crown of Thorns', img: 'Crown_of_Thorns.webp', desc: "Destroy enemies on hit taken." }, 
+        { id: 'Radiant Feather', img: 'Radiant_Feather.webp', desc: "Ball speed + knockback." }, 
+        { id: 'Fleet Feet', img: 'Fleet_Feet.webp', desc: "Move speed + shoot while moving." }, 
+        { id: 'Diamond Dagger', name: 'Diamond D.', img: 'Diamond_Hilted_Dagger.webp', desc: "Front Crit." }, 
+        { id: 'Sapphire Dagger', name: 'Sapphire D.', img: 'Sapphire_Hilted_Dagger.webp', desc: "Left Crit." }, 
+        { id: 'Ruby Dagger', name: 'Ruby D.', img: 'Ruby_Hilted_Dagger.webp', desc: "Back Crit." }, 
+        { id: 'Emerald Dagger', name: 'Emerald D.', img: 'Emerald_Hilted_Dagger.webp', desc: "Right Crit." },
+        { id: 'Turret', img: 'Turret.webp', desc: "Periodically fires projectiles." }, 
+        { id: 'Hand Fan', img: 'Hand_Fan.webp', desc: "Defensive wind pushes enemies." }, 
+        { id: 'Iron Onesie', img: 'Iron_Onesie.webp', desc: "Ball dmg scales with Baby Balls." } 
+    ];
+
+    const evoPassives = [ 
+        { id: 'Cornucopia', img: 'Cornucopia.webp', desc: "Spawn extra Baby Balls.", req: [['Baby Rattle', 'War Horn']] }, 
+        { id: 'Gracious Impaler', img: 'Gracious_Impaler.webp', desc: "Crits chance to insta-kill.", req: [['Reachers Spear', 'Deadeyes Amulet']] }, 
+        { id: 'Odiferous Shell', img: 'Odiferous_Shell.webp', desc: "Contact has 50% insta-kill.", req: [['Wretched Onion', 'Breastplate']] }, 
+        { id: 'Phantom Regalia', img: 'Phantom_Regalia.webp', desc: "Pass through + 50% dmg.", req: [['Ghostly Corset', 'Ethereal Cloak']] }, 
+        { id: 'Soul Reaver', img: 'Soul_Reaver.webp', desc: "Kill heal + Overheal.", req: [['Vampiric Sword', 'Everflowing Goblet']] }, 
+        { id: 'Tormenters Mask', name:"Torment Mask", img: 'Tormenters_Mask.webp', desc: "10% insta-kill on sight.", req: [['Spiked Collar', 'Crown of Thorns']] }, 
+        { id: 'Wings', name: 'Wings', img: 'Wings_of_the_Anointed.webp', desc: "Speed + Hazard Immunity.", req: [['Radiant Feather', 'Fleet Feet']] }, 
+        { id: 'Deadeyes Cross', name:"Deadeye Cross", img: 'Deadeyes_Cross.webp', desc: "60% Crit Chance everywhere.", req: [['Diamond Dagger', 'Sapphire Dagger', 'Ruby Dagger', 'Emerald Dagger']] },
+        { id: 'Grotesque Artillery', img: 'Grotesque_Artillery.webp', desc: "Floats and shoots random Lvl 1 balls.", req: [['Turret', 'Hand Fan']] }, 
+        { id: 'Deadeyes Impaler', img: 'Deadeyes_Impaler.webp', desc: "Crit hits insta-kill non-bosses.", req: [['Deadeyes Cross', 'Gracious Impaler']] } 
+    ];
+
+    const { createApp } = Vue;
+
+    createApp({
+        data() {
+            return {
+                baseBalls, basePassives, evoBalls, evoPassives,
+                myWeapons: [null, null, null, null],
+                myPassives: [{data:null, locked:false}, {data:null, locked:false}, {data:null, locked:false}, {data:null, locked:false}],
+                maxSlotsW: 4, maxSlotsP: 4,
+                targetedIds: [],
+                historyStack: [],
+                hoveredItem: null,
+                searchQuery: '', 
+                ttX: -999, ttY: -999, 
+                dragSource: null, dragOverIndex: null, dragOverType: null, selectedSlot: null
+            }
+        },
+        mounted() {
+            this.loadState();
+            window.addEventListener('mousemove', this.updateMousePos);
+            window.addEventListener('mouseup', this.onDragEnd);
+        },
+        unmounted() {
+            window.removeEventListener('mousemove', this.updateMousePos);
+            window.removeEventListener('mouseup', this.onDragEnd);
+        },
+        computed: {
+            filteredBalls() {
+                if(!this.searchQuery) return this.baseBalls;
+                const q = this.searchQuery.toLowerCase();
+                return this.baseBalls.filter(i => i.id.toLowerCase().includes(q) || i.desc.toLowerCase().includes(q));
+            },
+            filteredPassives() {
+                if(!this.searchQuery) return this.basePassives;
+                const q = this.searchQuery.toLowerCase();
+                return this.basePassives.filter(i => i.id.toLowerCase().includes(q) || i.desc.toLowerCase().includes(q));
+            },
+            
+            sortedSuggestions() {
+                let simW = this.myWeapons.map((w, i) => w && !w.fused ? {id: w.id, idx: i} : null).filter(x=>x);
+                let simP = this.myPassives.map((p, i) => p.data && !p.data.fused ? {id: p.data.id, idx: i} : null).filter(x=>x);
+
+                let results = [];
+                const allEvos = [...this.evoBalls.map(x=>({...x, type:'ball'})), ...this.evoPassives.map(x=>({...x, type:'passive'}))];
+
+                const targets = allEvos.filter(e => this.targetedIds.includes(e.id));
+                const others = allEvos.filter(e => !this.targetedIds.includes(e.id));
+
+                const checkEvo = (evo, pool) => {
+                    // Analyze all variants
+                    let analyzed = evo.req.map(recipe => {
+                        let currentMissing = [];
+                        let currentUsedIndices = [];
+                        let tempPool = [...pool];
+                        let ownedCount = 0;
+                        
+                        recipe.forEach(ing => {
+                            const foundIndex = tempPool.findIndex(x => x.id === ing);
+                            if(foundIndex !== -1) {
+                                currentUsedIndices.push(tempPool[foundIndex].idx);
+                                tempPool.splice(foundIndex, 1);
+                                ownedCount++;
+                            } else {
+                                currentMissing.push(ing);
+                            }
+                        });
+                        
+                        return { 
+                            parts: recipe, missing: currentMissing, 
+                            missingCount: currentMissing.length, 
+                            usedIndices: currentUsedIndices, ownedCount 
+                        };
+                    });
+
+                    // Sort: Most complete first
+                    analyzed.sort((a, b) => a.missingCount - b.missingCount);
+                    
+                    // Best single recipe logic
+                    let best = analyzed[0];
+
+                    // Filter Logic:
+                    // If we have partial progress, show ONLY the recipes we have progress in.
+                    // Otherwise, show ALL recipes.
+                    let displayRecipes = analyzed;
+                    if (analyzed.some(r => r.ownedCount > 0)) {
+                        displayRecipes = analyzed.filter(r => r.ownedCount > 0);
+                    }
+                    
+                    return { best, displayRecipes };
+                };
+                
+                const getSubRecipes = (missingList) => {
+                    let subs = [];
+                    missingList.forEach(mid => {
+                         if(this.isEvolution(mid)) {
+                             const subItem = this.findItem(mid);
+                             if(subItem && subItem.req) {
+                                let subReq = subItem.req[0]; 
+                                subs.push({ id: mid, req: subReq });
+                             }
+                         }
+                    });
+                    return subs;
+                };
+
+                targets.forEach(evo => {
+                    let pool = evo.type === 'ball' ? simW : simP;
+                    const { best, displayRecipes } = checkEvo(evo, pool);
+
+                    if (best.usedIndices.length > 0) {
+                        if(evo.type === 'ball') {
+                            simW = simW.filter(item => !best.usedIndices.includes(item.idx));
+                        } else {
+                            simP = simP.filter(item => !best.usedIndices.includes(item.idx));
+                        }
+                    }
+
+                    results.push({
+                        evo, match: best, displayRecipes, subRecipes: getSubRecipes(best.missing),
+                        ready: best.missingCount === 0,
+                        target: true, conflict: false, score: 999 
+                    });
+                });
+
+                others.forEach(evo => {
+                    let pool = evo.type === 'ball' ? simW : simP;
+                    const { best, displayRecipes } = checkEvo(evo, pool);
+                    
+                    const isReady = best.missingCount === 0;
+                    const hasProgress = displayRecipes.some(r => r.ownedCount > 0);
+
+                    if (isReady || hasProgress) {
+                        results.push({
+                            evo, match: best, displayRecipes, subRecipes: getSubRecipes(best.missing),
+                            ready: isReady, target: false, conflict: false, score: isReady ? 100 : 10
+                        });
+                    }
+                });
+
+                return results.sort((a,b) => b.score - a.score);
+            },
+            
+            reservedIndices() {
+                let resW = [], resP = [];
+                let simW = this.myWeapons.map((w, i) => w && !w.fused ? {id: w.id, idx: i} : null).filter(x=>x);
+                let simP = this.myPassives.map((p, i) => p.data && !p.data.fused ? {id: p.data.id, idx: i} : null).filter(x=>x);
+                const allEvos = [...this.evoBalls.map(x=>({...x, type:'ball'})), ...this.evoPassives.map(x=>({...x, type:'passive'}))];
+                const targets = allEvos.filter(e => this.targetedIds.includes(e.id));
+
+                targets.forEach(evo => {
+                    // For reservation visualization, pick the 'easiest' recipe
+                    let bestReq = null; 
+                    let minMissing = 99;
+                    
+                    evo.req.forEach(recipe => {
+                        let currentMissing = 0;
+                        let currentUsed = [];
+                        let tempPool = [...simW]; // rough check
+                        if(evo.type !== 'ball') tempPool = [...simP];
+                        
+                        recipe.forEach(ing => {
+                            const foundIndex = tempPool.findIndex(x => x.id === ing);
+                            if(foundIndex !== -1) {
+                                currentUsed.push(tempPool[foundIndex].idx);
+                                tempPool.splice(foundIndex, 1);
+                            } else currentMissing++;
+                        });
+                        
+                        if(currentMissing < minMissing) {
+                            minMissing = currentMissing;
+                            bestReq = currentUsed;
+                        }
+                    });
+
+                    if(bestReq) {
+                        bestReq.forEach(idx => {
+                            if(evo.type === 'ball') {
+                                resW.push(idx);
+                                simW = simW.filter(x => x.idx !== idx);
+                            } else {
+                                resP.push(idx);
+                                simP = simP.filter(x => x.idx !== idx);
+                            }
+                        });
+                    }
+                });
+                
+                return { ball: resW, passive: resP };
+            }
+        },
+        methods: {
+            // ... (Same methods as before)
+            isInInventory(id) {
+                return this.myWeapons.some(w => w && !w.fused && w.id === id) || 
+                       this.myPassives.some(p => p.data && !p.data.fused && p.data.id === id);
+            },
+            findItem(id) {
+                return [...baseBalls, ...basePassives, ...evoBalls, ...evoPassives].find(x => x.id === id) || {id, img:'', name:id};
+            },
+            getType(id) {
+                if (baseBalls.some(b => b.id === id) || evoBalls.some(b => b.id === id)) return 'ball';
+                return 'passive';
+            },
+            isEvolution(id) {
+                return [...evoBalls, ...evoPassives].some(e => e.id === id);
+            },
+            getIngredients(id) {
+                const item = this.findItem(id);
+                if(item && item.req) return item.req[0];
+                return [];
+            },
+            getNeededCount(id) {
+                let count = 0;
+                const activeTargets = this.sortedSuggestions.filter(s => s.target);
+                activeTargets.forEach(s => {
+                     s.match.missing.forEach(missingId => {
+                         if (missingId === id) count++;
+                         const missingItem = this.findItem(missingId);
+                         if(missingItem.req) {
+                             missingItem.req[0].forEach(sub => { if(sub === id) count++; });
+                         }
+                     });
+                });
+                return count;
+            },
+            isNeededForTarget(id) {
+                const activeTargets = this.sortedSuggestions.filter(s => s.target);
+                if (activeTargets.some(s => s.match.missing.includes(id))) return true;
+                return activeTargets.some(s => {
+                    return s.match.missing.some(missingId => {
+                        const missingItem = this.findItem(missingId);
+                        if (missingItem && missingItem.req) {
+                            return missingItem.req.some(r => r.includes(id));
+                        }
+                        return false;
+                    });
+                });
+            },
+            isSynergy(id) {
+                if(!this.hoveredItem) return false;
+                const hId = this.hoveredItem.id;
+                const evo = this.evoBalls.find(e=>e.id===id) || this.evoPassives.find(e=>e.id===id);
+                if(evo && evo.req.some(r => r.includes(hId))) return true;
+                return false;
+            },
+            isReserved(index, type) {
+                return this.reservedIndices[type].includes(index);
+            },
+            updateMousePos(e) {
+                const offset = 15;
+                const ttWidth = 280; 
+                const ttHeight = 150; 
+                let x = e.clientX + offset;
+                let y = e.clientY + offset;
+                const maxWidth = window.innerWidth - ttWidth - 10; 
+                if (x > maxWidth) x = maxWidth;
+                if (x < 10) x = 10;
+                if(y + ttHeight > window.innerHeight) y = e.clientY - ttHeight - offset;
+                this.ttX = x; 
+                this.ttY = y;
+            },
+            setHover(item) { this.hoveredItem = item; },
+            clearHover() { this.hoveredItem = null; },
+            
+            toggleSlotW() {
+                this.maxSlotsW = this.maxSlotsW === 4 ? 5 : 4;
+                this.compactInventory();
+                this.saveState();
+            },
+            toggleSlotP() {
+                this.maxSlotsP = this.maxSlotsP === 4 ? 5 : 4;
+                this.compactInventory();
+                this.saveState();
+            },
+
+            addItem(type, id) {
+                this.hoveredItem = null;
+                if(type === 'ball') {
+                    const idx = this.myWeapons.findIndex(w => w && !w.fused && w.id === id);
+                    if(idx !== -1) { this.removeItem('ball', idx); return; }
+                } else {
+                    const idx = this.myPassives.findIndex(p => p.data && !p.data.fused && p.data.id === id);
+                    if(idx !== -1) { this.removeItem('passive', idx); return; }
+                }
+
+                this.pushHistory();
+                if(type === 'ball') {
+                    const idx = this.myWeapons.indexOf(null);
+                    if(idx !== -1 && idx < this.maxSlotsW) this.myWeapons[idx] = { id: id, fused: false };
+                } else {
+                    const idx = this.myPassives.findIndex(p => p.data === null && !p.locked);
+                    if(idx !== -1 && idx < this.maxSlotsP) this.myPassives[idx].data = { id: id, fused: false };
+                }
+                this.saveState();
+            },
+            removeItem(type, index) {
+                this.hoveredItem = null;
+                this.pushHistory();
+                if(type === 'ball') this.myWeapons[index] = null;
+                else this.myPassives[index].data = null;
+                this.compactInventory();
+                this.saveState();
+            },
+            compactInventory() {
+                if(this.myWeapons.length !== this.maxSlotsW) {
+                    const activeW = this.myWeapons.filter(w => w);
+                    this.myWeapons = [...activeW, ...Array(5).fill(null)].slice(0, this.maxSlotsW);
+                } else {
+                     const activeW = this.myWeapons.filter(w => w);
+                     for(let i=0; i<this.maxSlotsW; i++) this.myWeapons[i] = activeW[i] || null;
+                }
+                
+                const currentSize = this.myPassives.length;
+                if (currentSize < this.maxSlotsP) {
+                     this.myPassives.push({data:null, locked:false});
+                } else if (currentSize > this.maxSlotsP) {
+                     this.myPassives = this.myPassives.slice(0, this.maxSlotsP);
+                }
+
+                const activePassiveData = this.myPassives.map(p => p.data).filter(d => d !== null);
+                let tempPassives = this.myPassives.map(p => ({...p, data: null}));
+                let dataIndex = 0;
+                for(let i=0; i<this.maxSlotsP; i++) {
+                    if(!tempPassives[i].locked && dataIndex < activePassiveData.length) {
+                        tempPassives[i].data = activePassiveData[dataIndex];
+                        dataIndex++;
+                    }
+                }
+                this.myPassives = tempPassives;
+            },
+            togglePassiveLock(index) {
+                if(this.myPassives[index].data) return;
+                this.pushHistory();
+                this.myPassives[index].locked = !this.myPassives[index].locked;
+                this.saveState();
+            },
+            toggleTarget(id) {
+                this.hoveredItem = null;
+                this.pushHistory();
+                if(this.targetedIds.includes(id)) this.targetedIds = this.targetedIds.filter(x => x !== id);
+                else this.targetedIds.push(id);
+                this.saveState();
+            },
+            toggleLock(id) { this.toggleTarget(id); },
+            
+            evolve(suggestion) {
+                this.hoveredItem = null;
+                this.pushHistory();
+                // Consume best match parts
+                let ingredients = [...suggestion.match.parts];
+                
+                if(suggestion.evo.type === 'ball') {
+                    ingredients.forEach(ing => {
+                        const idx = this.myWeapons.findIndex(w => w && w.id === ing);
+                        if(idx !== -1) this.myWeapons[idx] = null;
+                    });
+                    this.compactInventory();
+                    const empty = this.myWeapons.indexOf(null);
+                    if(empty !== -1) this.myWeapons[empty] = { id: suggestion.evo.id, fused: false };
+                } else {
+                    ingredients.forEach(ing => {
+                        const idx = this.myPassives.findIndex(p => p.data && p.data.id === ing);
+                        if(idx !== -1) this.myPassives[idx].data = null;
+                    });
+                    this.compactInventory();
+                    const empty = this.myPassives.findIndex(p => p.data === null && !p.locked);
+                    if(empty !== -1) this.myPassives[empty].data = { id: suggestion.evo.id, fused: false };
+                }
+
+                this.targetedIds = this.targetedIds.filter(x => x !== suggestion.evo.id);
+                this.saveState();
+            },
+            resetAll() {
+                if(confirm("Reset run?")) {
+                    this.hoveredItem = null;
+                    this.pushHistory();
+                    this.myWeapons = Array(this.maxSlotsW).fill(null);
+                    this.myPassives = Array(this.maxSlotsP).fill().map(()=>({data:null,locked:false}));
+                    this.targetedIds = [];
+                    this.historyStack = [];
+                    this.saveState();
+                }
+            },
+            pushHistory() {
+                if(this.historyStack.length > 20) this.historyStack.shift();
+                this.historyStack.push(JSON.stringify({
+                    w: this.myWeapons, p: this.myPassives, t: this.targetedIds, mw: this.maxSlotsW, mp: this.maxSlotsP
+                }));
+            },
+            undo() {
+                if(!this.historyStack.length) return;
+                const prev = JSON.parse(this.historyStack.pop());
+                this.myWeapons = prev.w; this.myPassives = prev.p;
+                this.targetedIds = prev.t;
+                if(prev.mw) this.maxSlotsW = prev.mw;
+                if(prev.mp) this.maxSlotsP = prev.mp;
+                this.saveState();
+            },
+            saveState() {
+                localStorage.setItem('ballxpit_vue_v1', JSON.stringify({ 
+                    w: this.myWeapons, p: this.myPassives, t: this.targetedIds, mw: this.maxSlotsW, mp: this.maxSlotsP
+                }));
+            },
+            loadState() {
+                const s = localStorage.getItem('ballxpit_vue_v1');
+                if(s) {
+                    try {
+                        const d = JSON.parse(s);
+                        if(d.mw) this.maxSlotsW = d.mw;
+                        if(d.mp) this.maxSlotsP = d.mp;
+                        
+                        if(this.myWeapons.length !== this.maxSlotsW) this.myWeapons = Array(this.maxSlotsW).fill(null);
+                        if(this.myPassives.length !== this.maxSlotsP) this.myPassives = Array(this.maxSlotsP).fill().map(()=>({data:null,locked:false}));
+
+                        if(d.w) this.myWeapons = d.w;
+                        if(d.p) {
+                             d.p.forEach((saved, i) => {
+                                 if(i < this.myPassives.length) this.myPassives[i] = saved;
+                             });
+                        }
+                        if(d.t) this.targetedIds = d.t;
+                    } catch(e) {}
+                }
+            },
+            handleSlotClick(index, type) {
+                if (!this.selectedSlot) {
+                    const item = type === 'ball' ? this.myWeapons[index] : this.myPassives[index].data;
+                    if (item) {
+                        this.selectedSlot = { index, type };
+                        this.setHover(this.findItem(item.id));
+                    } else if(type === 'passive') {
+                        this.togglePassiveLock(index);
+                    }
+                    return;
+                }
+                if (this.selectedSlot.index === index && this.selectedSlot.type === type) {
+                    this.selectedSlot = null;
+                    this.clearHover();
+                    return;
+                }
+                if (this.selectedSlot.type !== type) {
+                     const item = type === 'ball' ? this.myWeapons[index] : this.myPassives[index].data;
+                     if (item) {
+                         this.selectedSlot = { index, type };
+                         this.setHover(this.findItem(item.id));
+                     } else {
+                         this.selectedSlot = null;
+                         this.clearHover();
+                     }
+                     return;
+                }
+                this.performMove(this.selectedSlot.index, index, type);
+                this.selectedSlot = null;
+                this.clearHover();
+            },
+            performMove(fromIndex, toIndex, type) {
+                this.pushHistory();
+                const srcItem = type === 'ball' ? this.myWeapons[fromIndex] : this.myPassives[fromIndex].data;
+                const tgtItem = type === 'ball' ? this.myWeapons[toIndex] : this.myPassives[toIndex].data;
+
+                if (type === 'passive' && this.myPassives[toIndex].locked) return;
+
+                if (!tgtItem) {
+                    if (type === 'ball') {
+                        this.myWeapons[toIndex] = srcItem;
+                        this.myWeapons[fromIndex] = null;
+                    } else {
+                        this.myPassives[toIndex].data = srcItem;
+                        this.myPassives[fromIndex].data = null;
+                    }
+                    this.compactInventory();
+                } else {
+                    const canFuse = (type === 'ball') && !srcItem.fused && !tgtItem.fused;
+                    if (canFuse) {
+                        const fused = { id: 'FUSED', fused: true, parts: [srcItem.id, tgtItem.id] };
+                        this.myWeapons[toIndex] = fused;
+                        this.myWeapons[fromIndex] = null;
+                        this.compactInventory();
+                    } else {
+                        if (type === 'ball') {
+                            this.myWeapons[toIndex] = srcItem;
+                            this.myWeapons[fromIndex] = tgtItem;
+                        } else {
+                            this.myPassives[toIndex].data = srcItem;
+                            this.myPassives[fromIndex].data = tgtItem;
+                        }
+                    }
+                }
+                this.saveState();
+            },
+            onDragStart(index, type) {
+                this.dragSource = { index, type };
+            },
+            onDragEnd() {
+                this.dragSource = null;
+                this.dragOverIndex = null;
+            },
+            onDragOver(index, type) {
+                this.dragOverIndex = index;
+                this.dragOverType = type;
+            },
+            onDrop(targetIndex, targetType) {
+                this.dragOverIndex = null;
+                this.dragOverType = null;
+                const source = this.dragSource;
+                this.dragSource = null; 
+
+                if(!source || source.type !== targetType || source.index === targetIndex) return;
+                this.performMove(source.index, targetIndex, targetType);
+            }
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
